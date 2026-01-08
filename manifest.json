@@ -16,12 +16,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Google Ads Bot",
-    "default_icons": {
-      "16": "images/icon-16.png",
-      "48": "images/icon-48.png",
-      "128": "images/icon-128.png"
-    }
+    "default_title": "Google Ads Bot"
   },
   "background": {
     "service_worker": "background.js"
@@ -35,10 +30,5 @@
       "js": ["content.js"],
       "run_at": "document_start"
     }
-  ],
-  "icons": {
-    "16": "images/icon-16.png",
-    "48": "images/icon-48.png",
-    "128": "images/icon-128.png"
-  }
+  ]
 }
