@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Ads Bot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🤖 Google Ads Bot</h1>
+            <p class="subtitle">Автоматизация создания кампаний</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="campaign">Кампания</button>
+            <button class="tab-button" data-tab="ads">Объявления</button>
+            <button class="tab-button" data-tab="tracking">Трекинг</button>
+            <button class="tab-button" data-tab="settings">Настройки</button>
+        </div>
+
+        <!-- TAB 1: CAMPAIGN -->
+        <div id="campaign" class="tab-content active">
+            <h2>Параметры кампании</h2>
+            
+            <div class="form-group">
+                <label for="daily_budget">Дневной бюджет</label>
+                <input type="number" id="daily_budget" placeholder="100" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="target_cpa">Target CPA</label>
+                <input type="number" id="target_cpa" placeholder="50" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="conversion_value">Стоимость конверсии</label>
+                <input type="number" id="conversion_value" placeholder="100" min="0" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="geo_country">Страна</label>
+                <input type="text" id="geo_country" placeholder="Portugal">
+            </div>
+
+            <div class="form-group">
+                <label for="language">Язык</label>
+                <input type="text" id="language" placeholder="Portuguese">
+            </div>
+
+            <div class="form-group">
+                <label for="schedule_days">Дни недели</label>
+                <select id="schedule_days">
+                    <option value="mon-fri">Пн-Пт</option>
+                    <option value="all-days">Все дни</option>
+                    <option value="weekend">Выходные</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="schedule_start">Начало расписания</label>
+                <input type="text" id="schedule_start" placeholder="09:00">
+            </div>
+
+            <div class="form-group">
+                <label for="schedule_end">Конец расписания</label>
+                <input type="text" id="schedule_end" placeholder="18:00">
+            </div>
+        </div>
+
+        <!-- TAB 2: ADS -->
+        <div id="ads" class="tab-content">
+            <h2>Объявления</h2>
+
+            <div class="form-group">
+                <label for="domain">Домен (Reference Domain)</label>
+                <input type="text" id="domain" placeholder="example.com">
+            </div>
+
+            <div class="form-group">
+                <label>Заголовки (до 5)</label>
+                <textarea id="headlines" placeholder="Введите заголовки, по одному на строку"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Описания (до 5)</label>
+                <textarea id="descriptions" placeholder="Введите описания, по одному на строку"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="business_name">Названия бизнеса (для рандома)</label>
+                <textarea id="business_name" placeholder="Введите названия, по одному на строку"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="cta_text">Call to Action текст</label>
+                <input type="text" id="cta_text" placeholder="Shop Now">
+            </div>
+
+            <div class="form-group">
+                <label for="final_url">Final URL</label>
+                <input type="text" id="final_url" placeholder="https://example.com">
+            </div>
+        </div>
+
+        <!-- TAB 3: TRACKING -->
+        <div id="tracking" class="tab-content">
+            <h2>Tracking Script</h2>
+
+            <div class="form-group">
+                <label for="account_name">Название аккаунта</label>
+                <input type="text" id="account_name" placeholder="My Account">
+            </div>
+
+            <div class="form-group">
+                <label for="creative_approach">Подход к видеокреативу</label>
+                <input type="text" id="creative_approach" placeholder="Video Ads Q1">
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="auto_run_tracking">
+                    Автоматически запустить скрипт каждый час
+                </label>
+            </div>
+        </div>
+
+        <!-- TAB 4: SETTINGS -->
+        <div id="settings" class="tab-content">
+            <h2>Настройки</h2>
+
+            <div class="form-group">
+                <button id="save-button" class="btn btn-primary">💾 Сохранить настройки</button>
+            </div>
+
+            <div class="form-group">
+                <button id="export-button" class="btn btn-secondary">📥 Экспортировать</button>
+            </div>
+
+            <div class="form-group">
+                <button id="import-button" class="btn btn-secondary">📤 Импортировать</button>
+            </div>
+
+            <div class="form-group">
+                <button id="reset-button" class="btn btn-danger">🔄 Сбросить</button>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <button id="run-full-pipeline" class="btn btn-primary btn-large">▶️ Запустить полный цикл</button>
+            <button id="run-tracking-only" class="btn btn-secondary btn-large">⚡ Только Tracking Script</button>
+        </footer>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
