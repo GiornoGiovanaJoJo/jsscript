@@ -28,7 +28,10 @@
         "https://ads.google.com/*",
         "https://myads.google.com/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "selectors.js",
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ]
