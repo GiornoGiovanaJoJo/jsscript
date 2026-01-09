@@ -30,6 +30,12 @@ const GoogleAdsBot = {
             this.config = { ...stored, ...request.config };
 
             switch (request.action) {
+                case 'AUTO_LOGIN':
+                    this.log('🔐 Получена команда AUTO_LOGIN - нажимаем кнопку Войти...');
+                    await this.autoLogin();
+                    sendResponse({ status: 'login_in_progress' });
+                    break;
+
                 case 'START_FULL_PIPELINE':
                     await this.runFullPipeline();
                     sendResponse({ status: 'started', step: 1 });
@@ -51,6 +57,75 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`❌ Ошибка в обработке сообщения: ${error.message}`);
             sendResponse({ status: 'error', message: error.message });
+        }
+    },
+
+    // ========================
+    // AUTO LOGIN
+    // ========================
+    async autoLogin() {
+        this.log('🔐 Поиск кнопки Войти...');
+        try {
+            // Ищем кнопку "Войти" - она может быть на русском или английском
+            let loginButton = null;
+            
+            // Попытка 1: Найти кнопку по тексту "Войти" (русский)
+            let buttons = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+            loginButton = buttons.find(btn => 
+                btn.innerText.includes('Войти') || 
+                btn.textContent.includes('Войти')
+            );
+
+            // Попытка 2: Поиск по English text "Sign In"
+            if (!loginButton) {
+                loginButton = buttons.find(btn => 
+                    btn.innerText.includes('Sign in') || 
+                    btn.textContent.includes('Sign in')
+                );
+            }
+
+            // Попытка 3: Поиск по aria-label
+            if (!loginButton) {
+                loginButton = document.querySelector('button[aria-label*="Войти"], button[aria-label*="Sign"], [role="button"][aria-label*="Sign"]');
+            }
+
+            // Попытка 4: Поиск по href/onclick
+            if (!loginButton) {
+                loginButton = document.querySelector('a[href*="accounts.google"], a[href*="signin"], button[onclick*="login"]');
+            }
+
+            if (loginButton) {
+                this.log('✅ Кнопка Войти найдена! Нажимаем...');
+                loginButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await this.delay(300);
+                loginButton.click();
+                this.log('✅ Кнопка Войти нажата');
+                
+                // Ждем перенаправления и загрузки новой страницы
+                await this.delay(3000);
+                
+                // Проверяем, что мы попали на страницу Google Ads dashboard
+                await this.waitForElement('nav a:has-text("Campaigns"), a[aria-label*="Campaigns"], [role="navigation"]', 15000);
+                this.log('✅ Страница Google Ads загрузилась! Запускаем полный пайплайн...');
+                
+                // Запустить полный пайплайн
+                await this.runFullPipeline();
+            } else {
+                this.log('⚠️ Кнопка Войти не найдена. Проверяем, может быть мы уже в аккаунте...');
+                
+                // Проверяем, есть ли уже доступ к основному интерфейсу
+                const campaignNav = document.querySelector('nav a:has-text("Campaigns"), a[aria-label*="Campaigns"]');
+                if (campaignNav) {
+                    this.log('✅ Уже в аккаунте Google Ads! Запускаем полный пайплайн...');
+                    await this.runFullPipeline();
+                } else {
+                    this.log('❌ Не удалось найти кнопку Войти и основной интерфейс Google Ads');
+                    throw new Error('Login button not found');
+                }
+            }
+        } catch (error) {
+            this.log(`⚠️ Ошибка при автоматическом входе: ${error.message}`);
+            throw error;
         }
     },
 
@@ -311,20 +386,20 @@ const GoogleAdsBot = {
             // Пол (динамический параметр)
             if (this.config.audience_gender && this.config.audience_gender !== 'all') {
                 const genderText = this.config.audience_gender === 'male' ? 'Male' : 'Female';
-                await this.clickElement(`input[aria-label*="${genderText}"], label:has-text("${genderText}")`)
+                await this.clickElement(`input[aria-label*="${genderText}"], label:has-text("${genderText}")`);
                 await this.delay(300);
             }
 
             // Возраст (динамические параметры)
             if (this.config.audience_age_min) {
                 const minAge = this.config.audience_age_min;
-                await this.clickElement(`input[aria-label*="${minAge}"], label:has-text("${minAge}")`)
+                await this.clickElement(`input[aria-label*="${minAge}"], label:has-text("${minAge}")`);
                 await this.delay(300);
             }
 
             if (this.config.audience_age_max) {
                 const maxAge = this.config.audience_age_max;
-                await this.clickElement(`input[aria-label*="${maxAge}"], label:has-text("${maxAge}")`)
+                await this.clickElement(`input[aria-label*="${maxAge}"], label:has-text("${maxAge}")`);
                 await this.delay(300);
             }
 
