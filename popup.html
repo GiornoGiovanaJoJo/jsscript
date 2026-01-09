@@ -16,7 +16,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             padding: 20px;
         }
@@ -27,7 +27,11 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 32px;
             width: 100%;
-            max-width: 500px;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin-top: 20px;
+            margin-bottom: 20px;
         }
 
         h1 {
@@ -43,7 +47,13 @@
         }
 
         .form-section {
-            margin-bottom: 24px;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .form-section:last-of-type {
+            border-bottom: none;
         }
 
         .form-section-title {
@@ -71,7 +81,9 @@
         input[type="text"],
         input[type="number"],
         input[type="time"],
-        select {
+        input[type="url"],
+        select,
+        textarea {
             width: 100%;
             padding: 10px 12px;
             border: 1.5px solid #e0e0e0;
@@ -81,10 +93,18 @@
             font-family: inherit;
         }
 
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+        }
+
         input[type="text"]:focus,
         input[type="number"]:focus,
         input[type="time"]:focus,
-        select:focus {
+        input[type="url"]:focus,
+        select:focus,
+        textarea:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -105,11 +125,22 @@
             gap: 12px;
         }
 
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
         .button-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-top: 32px;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
         }
 
         button {
@@ -189,12 +220,18 @@
             color: #999;
             margin-top: 4px;
         }
+
+        .required-note {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Campaign Creator</h1>
-        <p class="subtitle">Automated Google Ads Campaign Setup</p>
+        <p class="subtitle">Automated Google Ads Campaign Setup with Full Dynamic Parameters</p>
 
         <form id="campaignForm">
             <!-- CAMPAIGN DETAILS -->
@@ -206,24 +243,28 @@
                     <input type="text" id="campaignName" required placeholder="e.g., Summer Campaign 2026">
                 </div>
 
-                <div class="form-group">
-                    <label for="budget">Daily Budget (€) *</label>
-                    <input type="number" id="budget" step="0.01" required placeholder="e.g., 160">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="budget">Daily Budget (€) *</label>
+                        <input type="number" id="budget" step="0.01" required placeholder="e.g., 160">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="targetCPA">Target CPA (€) *</label>
+                        <input type="number" id="targetCPA" step="0.01" required placeholder="e.g., 120">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="targetCPA">Target CPA (€) *</label>
-                    <input type="number" id="targetCPA" step="0.01" required placeholder="e.g., 120">
-                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="location">Location *</label>
+                        <input type="text" id="location" required placeholder="e.g., Portugal">
+                    </div>
 
-                <div class="form-group">
-                    <label for="location">Location *</label>
-                    <input type="text" id="location" required placeholder="e.g., Portugal">
-                </div>
-
-                <div class="form-group">
-                    <label for="language">Language *</label>
-                    <input type="text" id="language" required placeholder="e.g., Portuguese">
+                    <div class="form-group">
+                        <label for="language">Language *</label>
+                        <input type="text" id="language" required placeholder="e.g., Portuguese">
+                    </div>
                 </div>
             </div>
 
@@ -248,7 +289,7 @@
                 <div class="form-group">
                     <label for="scheduleDays">Days of Week</label>
                     <input type="text" id="scheduleDays" value="Monday - Friday" disabled>
-                    <p class="helper-text">Fixed: Mon-Fri</p>
+                    <p class="helper-text">Fixed: Monday-Friday (Static)</p>
                 </div>
             </div>
 
@@ -261,7 +302,7 @@
                     <select id="channels" required>
                         <option value="">-- Choose --</option>
                         <option value="all">All Google Channels</option>
-                        <option value="discover">Discover Only</option>
+                        <option value="discover" selected>Discover Only (MVP)</option>
                     </select>
                     <p class="helper-text">Distribution channels for your ads</p>
                 </div>
@@ -335,10 +376,81 @@
                 </div>
             </div>
 
+            <!-- AD CONTENT (DYNAMIC) -->
+            <div class="form-section">
+                <span class="form-section-title">✍️ Ad Content (Dynamic)</span>
+                
+                <div class="form-group">
+                    <label for="domain">Reference Domain *</label>
+                    <input type="url" id="domain" required placeholder="https://example.com">
+                    <p class="helper-text">Your website domain for reference</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="headlines">Headlines (up to 5) *</label>
+                    <textarea id="headlines" required placeholder="Enter 5 headlines, one per line&#10;Line 1&#10;Line 2&#10;Line 3&#10;Line 4&#10;Line 5"></textarea>
+                    <p class="helper-text">Up to 5 headlines for your ads (one per line)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="descriptions">Descriptions (up to 5) *</label>
+                    <textarea id="descriptions" required placeholder="Enter 5 descriptions, one per line&#10;Desc 1&#10;Desc 2&#10;Desc 3&#10;Desc 4&#10;Desc 5"></textarea>
+                    <p class="helper-text">Up to 5 descriptions for your ads (one per line)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="businessNames">Business Names (Random Pool) *</label>
+                    <textarea id="businessNames" required placeholder="Enter business names (one per line)&#10;Business Name 1&#10;Business Name 2&#10;Business Name 3"></textarea>
+                    <p class="helper-text">Names to be randomly selected for each ad (one per line)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="ctaText">Call to Action *</label>
+                    <input type="text" id="ctaText" required placeholder="e.g., Learn More, Shop Now, Contact Us">
+                    <p class="helper-text">CTA button text (will be localized to selected language/location)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="finalUrl">Final URL *</label>
+                    <input type="url" id="finalUrl" required placeholder="https://example.com/landing">
+                    <p class="helper-text">URL where users will be directed when clicking the ad</p>
+                </div>
+            </div>
+
+            <!-- TRACKING SCRIPT SETTINGS (DYNAMIC) -->
+            <div class="form-section">
+                <span class="form-section-title">📊 Tracking Script (Dynamic)</span>
+                
+                <div class="form-group">
+                    <label for="accountName">Account Name *</label>
+                    <input type="text" id="accountName" required placeholder="e.g., ClientName_Jan2026">
+                    <p class="helper-text">Name for tracking script identification</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="creativeApproach">Creative Approach *</label>
+                    <select id="creativeApproach" required>
+                        <option value="">-- Choose --</option>
+                        <option value="static">Static Images</option>
+                        <option value="video" selected>Video Creatives</option>
+                        <option value="dynamic">Dynamic Creative</option>
+                    </select>
+                    <p class="helper-text">How video creatives should be handled in tracking</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="autoRunTracking">
+                        <input type="checkbox" id="autoRunTracking" checked>
+                        Auto-run tracking script (hourly)
+                    </label>
+                    <p class="helper-text">Script will check for conversions every hour</p>
+                </div>
+            </div>
+
             <!-- ACTION BUTTONS -->
             <div class="button-group">
-                <button type="button" id="resetBtn">Reset</button>
-                <button type="submit" id="startBtn">Start Campaign</button>
+                <button type="button" id="resetBtn">Reset Form</button>
+                <button type="submit" id="startBtn">▶️ Start Campaign</button>
             </div>
 
             <div id="status" class="status"></div>
