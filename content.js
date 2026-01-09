@@ -17,6 +17,17 @@ const GoogleAdsBot = {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             this.handleMessage(request, sendResponse);
         });
+        
+        // Загрузить конфиг и автоматически запустить пайплайн
+        const config = await this.loadConfig();
+        if (config && config.campaignName) {
+            this.config = config;
+            this.log('✅ Config загружен! Запускаем полный пайплайн...');
+            await this.runFullPipeline();
+        } else {
+            this.log('⏳ Ожидание конфига из popup...');
+        }
+        
         this.log('✅ Bot готов к командам');
     },
 
@@ -362,7 +373,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при выборе устройств: ${error.message}`);
         }
-    }
+    },
 
     // ========================
     // STEP 3: CREATE AD GROUP
@@ -379,7 +390,7 @@ const GoogleAdsBot = {
         } catch (error) {
             await this.handleRetry('createAdGroup', error);
         }
-    }
+    },
 
     async fillAudienceDetails() {
         try {
@@ -409,7 +420,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении аудитории: ${error.message}`);
         }
-    }
+    },
 
     // ========================
     // STEP 4: CREATE ADS
@@ -461,7 +472,7 @@ const GoogleAdsBot = {
         } catch (error) {
             await this.handleRetry('createAds', error);
         }
-    }
+    },
 
     async fillHeadlines() {
         try {
@@ -481,7 +492,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении заголовков: ${error.message}`);
         }
-    }
+    },
 
     async fillDescriptions() {
         try {
@@ -501,7 +512,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении описаний: ${error.message}`);
         }
-    }
+    },
 
     async fillBusinessName() {
         try {
@@ -515,7 +526,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении бизнес-имени: ${error.message}`);
         }
-    }
+    },
 
     async disableOptionalCheckboxes() {
         try {
@@ -529,7 +540,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при отключении галочек: ${error.message}`);
         }
-    }
+    },
 
     async duplicateAds(count) {
         try {
@@ -542,7 +553,7 @@ const GoogleAdsBot = {
         } catch (error) {
             this.log(`⚠️ Ошибка при дублировании объявлений: ${error.message}`);
         }
-    }
+    },
 
     // ========================
     // STEP 5: PUBLISH CAMPAIGN
@@ -558,7 +569,7 @@ const GoogleAdsBot = {
         } catch (error) {
             await this.handleRetry('publishCampaign', error);
         }
-    }
+    },
 
     // ========================
     // STEP 6: TRACKING SCRIPT
@@ -601,7 +612,7 @@ const GoogleAdsBot = {
         } catch (error) {
             await this.handleRetry('setupTrackingScript', error);
         }
-    }
+    },
 
     async insertTrackingScriptCode() {
         try {
@@ -641,7 +652,7 @@ trackConversions();
         } catch (error) {
             this.log(`⚠️ Ошибка при вставке скрипта: ${error.message}`);
         }
-    }
+    },
 
     async handleGoogleAuthorization() {
         try {
@@ -656,7 +667,7 @@ trackConversions();
         } catch (error) {
             this.log(`⚠️ Авторизация Google (может потребоваться вручную): ${error.message}`);
         }
-    }
+    },
 
     async setScriptFrequency(frequency) {
         try {
@@ -670,7 +681,7 @@ trackConversions();
         } catch (error) {
             this.log(`⚠️ Ошибка при установке периодичности: ${error.message}`);
         }
-    }
+    },
 
     // ========================
     // HELPER FUNCTIONS
@@ -697,7 +708,7 @@ trackConversions();
         } catch (error) {
             // Silently fail
         }
-    }
+    },
 
     async handleStepError(error) {
         this.log(`❌ ОШИБКА НА ШАГЕ ${this.currentStep}: ${error.message}`);
@@ -707,7 +718,7 @@ trackConversions();
         if (document.body.innerText.includes('verification') || document.body.innerText.includes('2-Step')) {
             this.log('🔐 ОБНАРУЖЕНА ДВУХФАКТОРНАЯ АУТЕНТИФИКАЦИЯ - Пожалуйста, введите код вручную');
         }
-    }
+    },
 
     async handleRetry(functionName, error) {
         if (this.retryCount < this.maxRetries) {
@@ -732,7 +743,7 @@ trackConversions();
             this.retryCount = 0;
             await this.handleStepError(error);
         }
-    }
+    },
 
     async findElement(selector) {
         const element = document.querySelector(selector);
@@ -740,7 +751,7 @@ trackConversions();
             throw new Error(`Элемент не найден: ${selector}`);
         }
         return element;
-    }
+    },
 
     async waitForElement(selector, timeout = this.waitTimeout) {
         const startTime = Date.now();
@@ -750,7 +761,7 @@ trackConversions();
             await this.delay(100);
         }
         throw new Error(`Элемент не появился за ${timeout}ms: ${selector}`);
-    }
+    },
 
     async clickElement(selector) {
         const element = await this.waitForElement(selector);
@@ -758,7 +769,7 @@ trackConversions();
         await this.delay(100);
         element.click();
         await this.delay(300);
-    }
+    },
 
     async fillInput(selector, value) {
         const element = await this.findElement(selector);
@@ -767,11 +778,11 @@ trackConversions();
         element.dispatchEvent(new Event('input', { bubbles: true }));
         element.dispatchEvent(new Event('change', { bubbles: true }));
         await this.delay(300);
-    }
+    },
 
     async delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
-    }
+    },
 
     log(message) {
         const timestamp = new Date().toLocaleTimeString('ru-RU');
