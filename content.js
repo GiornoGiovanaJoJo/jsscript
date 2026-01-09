@@ -1,5 +1,5 @@
-// Google Ads Bot - Core Automation Engine
-// Handles all 6 steps of campaign creation pipeline
+// Google Ads Bot - Enhanced Core Automation Engine
+// Handles all 6 steps of campaign creation with full dynamic parameters
 
 const GoogleAdsBot = {
     config: {},
@@ -13,7 +13,7 @@ const GoogleAdsBot = {
     // INITIALIZATION
     // ========================
     async init() {
-        this.log('🤖 Инициализация Google Ads Bot...');
+        this.log('🤖 Инициализация Google Ads Bot с полной поддержкой динамических параметров...');
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             this.handleMessage(request, sendResponse);
         });
@@ -59,8 +59,8 @@ const GoogleAdsBot = {
     // ========================
     async loadConfig() {
         return new Promise((resolve) => {
-            chrome.storage.sync.get(null, (items) => {
-                resolve(items || {});
+            chrome.storage.local.get(['campaignConfig'], (result) => {
+                resolve(result.campaignConfig || {});
             });
         });
     },
@@ -74,7 +74,7 @@ const GoogleAdsBot = {
      */
     async runFullPipeline() {
         try {
-            this.log('▶️ СТАРТ ПОЛНОГО ЦИКЛА...');
+            this.log('▶️ СТАРТ ПОЛНОГО ЦИКЛА С ДИНАМИЧЕСКИМИ ПАРАМЕТРАМИ...');
 
             // Шаг 1: Создание конверсии
             this.currentStep = 1;
@@ -85,19 +85,19 @@ const GoogleAdsBot = {
             // Шаг 2: Создание кампании
             this.currentStep = 2;
             await this.createCampaign();
-            this.log('✅ Кампания создана');
+            this.log('✅ Кампания создана с динамическими параметрами');
             await this.delay(2000);
 
             // Шаг 3: Создание Ad Group
             this.currentStep = 3;
             await this.createAdGroup();
-            this.log('✅ Ad Group создан');
+            this.log('✅ Ad Group создан с таргетингом по демографии');
             await this.delay(2000);
 
             // Шаг 4: Создание объявлений
             this.currentStep = 4;
             await this.createAds();
-            this.log('✅ Объявления созданы');
+            this.log('✅ Объявления созданы со всеми динамическими параметрами');
             await this.delay(2000);
 
             // Шаг 5: Публикация кампании
@@ -118,11 +118,11 @@ const GoogleAdsBot = {
     },
 
     /**
-     * Только кампания и объявления (для уже созданного аккаунта)
+     * Только кампания и объявления
      */
     async runCampaignOnly() {
         try {
-            this.log('▶️ Создание только кампании...');
+            this.log('▶️ Создание только кампании со всеми параметрами...');
             this.currentStep = 2;
             await this.createCampaign();
             this.log('✅ Кампания и объявления готовы');
@@ -151,36 +151,38 @@ const GoogleAdsBot = {
     async createConversion() {
         this.log('📋 Шаг 1: Создание конверсии...');
         try {
-            // Перейти на вкладку Goals
-            await this.clickElement('a[aria-label*="Goals"], button:has-text("Goals")');
-            await this.waitForElement('button:has-text("New Conversion Action"), [role="button"]:has-text("New Conversion")');
+            // Перейти на Goals → Conversions
+            await this.clickElement('nav a:has-text("Goals"), a[aria-label*="Goals"]');
+            await this.delay(1500);
+            
+            await this.closeGoogleGuidance();
+            await this.delay(500);
 
             // Нажать на "New Conversion Action"
             await this.clickElement('button:has-text("New Conversion Action")');
             await this.delay(1000);
+            await this.closeGoogleGuidance();
 
             // Выбрать тип конверсии: Offline
             await this.clickElement('div:has-text("Offline conversion"), [role="option"]:has-text("Offline")');
             await this.delay(1000);
 
-            // Выбрать Data Source и пропустить
+            // Пропустить Data Source
             await this.clickElement('button:has-text("Skip")');
             await this.delay(500);
 
             // Отметить Custom data
-            await this.clickElement('input[type="checkbox"][aria-label*="Custom"]');
+            await this.clickElement('input[type="checkbox"][aria-label*="Custom"], input[type="checkbox"][aria-label*="customer"]');
             await this.delay(500);
 
-            // Заполнить стоимость конверсии
-            if (this.config.conversion_value) {
-                await this.fillInput('input[type="number"][placeholder*="value"]', this.config.conversion_value);
+            // Заполнить стоимость конверсии (динамический параметр)
+            if (this.config.targetCPA) {
+                await this.fillInput('input[type="number"][placeholder*="value"], input[aria-label*="conversion value"]', this.config.targetCPA);
             }
 
             // Нажать Done
             await this.clickElement('button:has-text("Done")');
             await this.delay(1000);
-
-            // Закрыть направляющие/подсказки Google (если они есть)
             await this.closeGoogleGuidance();
 
             this.log('✅ Конверсия успешно создана');
@@ -193,17 +195,15 @@ const GoogleAdsBot = {
     // STEP 2: CREATE CAMPAIGN
     // ========================
     async createCampaign() {
-        this.log('📊 Шаг 2: Создание Demand Gen кампании...');
+        this.log('📊 Шаг 2: Создание Demand Gen кампании с динамическими параметрами...');
         try {
             // Перейти на Campaigns
-            await this.clickElement('a[aria-label*="Campaigns"], nav a:has-text("Campaigns")');
-            await this.delay(1000);
+            await this.clickElement('nav a:has-text("Campaigns"), a[aria-label*="Campaigns"]');
+            await this.delay(1500);
 
             // Нажать New Campaign
-            await this.clickElement('button:has-text("New Campaign"), [role="button"]:has-text("+ Campaign")');
+            await this.clickElement('button:has-text("New Campaign"), [role="button"]:has-text("+")');
             await this.delay(1000);
-
-            // Закрыть гугловские подсказки
             await this.closeGoogleGuidance();
 
             // Выбрать тип: Demand Gen
@@ -216,8 +216,9 @@ const GoogleAdsBot = {
 
             // Заполнить параметры кампании
             await this.fillCampaignDetails();
+            await this.closeGoogleGuidance();
 
-            this.log('✅ Кампания успешно создана');
+            this.log('✅ Кампания успешно создана с динамическими параметрами');
         } catch (error) {
             await this.handleRetry('createCampaign', error);
         }
@@ -226,45 +227,47 @@ const GoogleAdsBot = {
     async fillCampaignDetails() {
         try {
             // Дневной бюджет
-            if (this.config.daily_budget) {
-                await this.fillInput('input[aria-label*="Daily budget"], input[placeholder*="budget"]', this.config.daily_budget);
+            if (this.config.budget) {
+                await this.fillInput('input[aria-label*="Daily budget"], input[placeholder*="budget"]', this.config.budget);
             }
 
             // Target CPA
-            if (this.config.target_cpa) {
-                await this.fillInput('input[aria-label*="Target CPA"], input[placeholder*="CPA"]', this.config.target_cpa);
+            if (this.config.targetCPA) {
+                await this.fillInput('input[aria-label*="Target CPA"], input[placeholder*="CPA"]', this.config.targetCPA);
             }
 
-            // Страна/Геолокация
-            if (this.config.geo_country) {
-                await this.fillInput('input[aria-label*="Location"], input[placeholder*="country"]', this.config.geo_country);
+            // Локация
+            if (this.config.location) {
+                await this.fillInput('input[aria-label*="Location"], input[placeholder*="country"]', this.config.location);
+                await this.delay(800);
+                await this.clickElement('div[role="option"]:first-of-type');
                 await this.delay(500);
-                await this.clickElement('div[role="option"]:first-child');
             }
 
             // Язык
             if (this.config.language) {
                 await this.fillInput('input[aria-label*="Language"], input[placeholder*="language"]', this.config.language);
+                await this.delay(800);
+                await this.clickElement('div[role="option"]:first-of-type');
                 await this.delay(500);
-                await this.clickElement('div[role="option"]:first-child');
             }
 
-            // Расписание - дни
-            if (this.config.schedule_days) {
-                await this.selectScheduleDays(this.config.schedule_days);
-            }
-
-            // Расписание - время начала
+            // Расписание - время
             if (this.config.schedule_start) {
                 await this.fillInput('input[aria-label*="Start time"], input[placeholder*="start"]', this.config.schedule_start);
             }
 
-            // Расписание - время конца
             if (this.config.schedule_end) {
                 await this.fillInput('input[aria-label*="End time"], input[placeholder*="end"]', this.config.schedule_end);
             }
 
-            // Устройства: только мобильные (по умолчанию)
+            // Каналы (динамический параметр)
+            if (this.config.channels && this.config.channels === 'discover') {
+                await this.clickElement('div:has-text("Discover"), [role="option"]:has-text("Discover")');
+                await this.delay(500);
+            }
+
+            // Устройства: только мобильные
             await this.selectDevices('mobile');
 
         } catch (error) {
@@ -272,20 +275,17 @@ const GoogleAdsBot = {
         }
     },
 
-    async selectScheduleDays(preset) {
-        const dayMapping = {
-            'mon-fri': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            'all-days': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            'weekend': ['Saturday', 'Sunday']
-        };
-        const days = dayMapping[preset] || [];
-        // TODO: Реализовать клики по дням недели
-    }
-
     async selectDevices(type) {
-        if (type === 'mobile') {
-            // Оставить только мобильные телефоны
-            await this.clickElement('input[aria-label*="Mobile phones"]');
+        try {
+            if (type === 'mobile') {
+                // Оставить только мобильные телефоны
+                const mobileCheckbox = await this.findElement('input[aria-label*="Mobile"], input[value*="mobile"]');
+                if (!mobileCheckbox.checked) {
+                    mobileCheckbox.click();
+                }
+            }
+        } catch (error) {
+            this.log(`⚠️ Ошибка при выборе устройств: ${error.message}`);
         }
     }
 
@@ -293,15 +293,14 @@ const GoogleAdsBot = {
     // STEP 3: CREATE AD GROUP
     // ========================
     async createAdGroup() {
-        this.log('👥 Шаг 3: Создание Ad Group и аудиторий...');
+        this.log('👥 Шаг 3: Создание Ad Group с динамическими аудиториями...');
         try {
-            // Заполнить параметры аудитории
+            // Заполнить параметры аудитории с динамической демографией
             await this.fillAudienceDetails();
-
-            // Закрыть направляющие
             await this.closeGoogleGuidance();
+            await this.delay(500);
 
-            this.log('✅ Ad Group и аудиторий готовы');
+            this.log('✅ Ad Group и аудитории готовы с демографическим таргетингом');
         } catch (error) {
             await this.handleRetry('createAdGroup', error);
         }
@@ -309,16 +308,29 @@ const GoogleAdsBot = {
 
     async fillAudienceDetails() {
         try {
-            // Демография: возраст, пол, родительский статус - оставить как в скрипте
-            // Таргет: Discover (по умолчанию)
-
-            // Имя аудитории
-            if (this.config.audience_name) {
-                await this.fillInput('input[aria-label*="Audience name"]', this.config.audience_name);
+            // Пол (динамический параметр)
+            if (this.config.audience_gender && this.config.audience_gender !== 'all') {
+                const genderText = this.config.audience_gender === 'male' ? 'Male' : 'Female';
+                await this.clickElement(`input[aria-label*="${genderText}"], label:has-text("${genderText}")`)
+                await this.delay(300);
             }
 
-            // Отключить доп. оптимизацию если нужно
-            await this.clickElement('input[aria-label*="optimization"]');
+            // Возраст (динамические параметры)
+            if (this.config.audience_age_min) {
+                const minAge = this.config.audience_age_min;
+                await this.clickElement(`input[aria-label*="${minAge}"], label:has-text("${minAge}")`)
+                await this.delay(300);
+            }
+
+            if (this.config.audience_age_max) {
+                const maxAge = this.config.audience_age_max;
+                await this.clickElement(`input[aria-label*="${maxAge}"], label:has-text("${maxAge}")`)
+                await this.delay(300);
+            }
+
+            // Отключить доп. оптимизацию
+            await this.clickElement('input[aria-label*="optimization"], input[aria-label*="Optimize"]');
+            await this.delay(300);
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении аудитории: ${error.message}`);
         }
@@ -328,61 +340,51 @@ const GoogleAdsBot = {
     // STEP 4: CREATE ADS
     // ========================
     async createAds() {
-        this.log('📝 Шаг 4: Создание объявлений с креативами...');
+        this.log('📝 Шаг 4: Создание объявлений со всеми динамическими параметрами...');
         try {
-            // Заполнить домен
+            await this.closeGoogleGuidance();
+            await this.delay(500);
+
+            // Заполнить domain (динамический)
             if (this.config.domain) {
                 await this.fillInput('input[aria-label*="domain"], input[placeholder*="domain"]', this.config.domain);
+                await this.delay(300);
             }
 
-            // Загрузить видео/изображения
-            await this.uploadCreatives();
-
-            // Заполнить логотип
-            if (this.config.logo_url) {
-                // TODO: Реализовать загрузку логотипа
-            }
-
-            // Отключить доп. чекбоксы
-            await this.disableOptionalCheckboxes();
-
-            // Заполнить заголовки
+            // Заголовки (динамические - до 5)
             await this.fillHeadlines();
+            await this.delay(300);
 
-            // Заполнить описания
+            // Описания (динамические - до 5)
             await this.fillDescriptions();
+            await this.delay(300);
 
-            // Заполнить бизнес-имя
+            // Бизнес-имя (случайный выбор из пула)
             await this.fillBusinessName();
+            await this.delay(300);
 
-            // Выбрать CTA
+            // CTA (динамический параметр с учетом локации)
             if (this.config.cta_text) {
-                await this.fillInput('input[aria-label*="Call to action"]', this.config.cta_text);
+                await this.fillInput('input[aria-label*="Call to action"], select[aria-label*="CTA"]', this.config.cta_text);
+                await this.delay(300);
             }
 
-            // Заполнить Final URL
+            // Final URL (динамический)
             if (this.config.final_url) {
                 await this.fillInput('input[aria-label*="Final URL"], input[placeholder*="http"]', this.config.final_url);
+                await this.delay(300);
             }
+
+            // Отключить доп. галочки
+            await this.disableOptionalCheckboxes();
+            await this.delay(300);
 
             // Дублировать объявления (5 копий)
             await this.duplicateAds(5);
 
-            this.log('✅ Объявления готовы');
+            this.log('✅ Объявления созданы со всеми динамическими параметрами');
         } catch (error) {
             await this.handleRetry('createAds', error);
-        }
-    }
-
-    async uploadCreatives() {
-        try {
-            // Найти кнопку Upload
-            const uploadButton = await this.findElement('button:has-text("Upload")');
-            uploadButton.click();
-            await this.delay(1000);
-            // TODO: Реализовать загрузку файлов из папки
-        } catch (error) {
-            this.log(`⚠️ Ошибка при загрузке креативов: ${error.message}`);
         }
     }
 
@@ -391,10 +393,15 @@ const GoogleAdsBot = {
             if (this.config.headlines) {
                 const headlines = this.config.headlines.split('\n').filter(h => h.trim()).slice(0, 5);
                 const inputs = document.querySelectorAll('input[aria-label*="Headline"], textarea[placeholder*="headline"]');
+                
                 for (let i = 0; i < headlines.length && i < inputs.length; i++) {
-                    inputs[i].value = headlines[i].trim();
-                    inputs[i].dispatchEvent(new Event('input', { bubbles: true }));
+                    const input = inputs[i];
+                    input.value = headlines[i].trim();
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    await this.delay(100);
                 }
+                this.log(`✅ Добавлено ${headlines.length} заголовков`);
             }
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении заголовков: ${error.message}`);
@@ -406,10 +413,15 @@ const GoogleAdsBot = {
             if (this.config.descriptions) {
                 const descriptions = this.config.descriptions.split('\n').filter(d => d.trim()).slice(0, 5);
                 const inputs = document.querySelectorAll('textarea[aria-label*="Description"], input[placeholder*="description"]');
+                
                 for (let i = 0; i < descriptions.length && i < inputs.length; i++) {
-                    inputs[i].value = descriptions[i].trim();
-                    inputs[i].dispatchEvent(new Event('input', { bubbles: true }));
+                    const input = inputs[i];
+                    input.value = descriptions[i].trim();
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    await this.delay(100);
                 }
+                this.log(`✅ Добавлено ${descriptions.length} описаний`);
             }
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении описаний: ${error.message}`);
@@ -418,10 +430,12 @@ const GoogleAdsBot = {
 
     async fillBusinessName() {
         try {
-            if (this.config.business_name) {
-                const names = this.config.business_name.split('\n').filter(n => n.trim());
+            if (this.config.business_names) {
+                const names = this.config.business_names.split('\n').filter(n => n.trim());
+                // Случайный выбор из пула имен
                 const randomName = names[Math.floor(Math.random() * names.length)];
-                await this.fillInput('input[aria-label*="Business name"]', randomName);
+                await this.fillInput('input[aria-label*="Business name"], input[placeholder*="business"]', randomName);
+                this.log(`✅ Выбрано имя бизнеса: ${randomName}`);
             }
         } catch (error) {
             this.log(`⚠️ Ошибка при заполнении бизнес-имени: ${error.message}`);
@@ -430,9 +444,13 @@ const GoogleAdsBot = {
 
     async disableOptionalCheckboxes() {
         try {
-            // Отключить определённые галочки
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            // TODO: Определить какие именно галочки отключать
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][aria-label*="auto"], input[type="checkbox"][aria-label*="optimization"]');
+            for (const checkbox of checkboxes) {
+                if (checkbox.checked) {
+                    checkbox.click();
+                    await this.delay(50);
+                }
+            }
         } catch (error) {
             this.log(`⚠️ Ошибка при отключении галочек: ${error.message}`);
         }
@@ -440,10 +458,11 @@ const GoogleAdsBot = {
 
     async duplicateAds(count) {
         try {
-            // Найти и нажать кнопку для дублирования
+            // Найти кнопку для дублирования
             for (let i = 0; i < count - 1; i++) {
-                await this.clickElement('button:has-text("Duplicate")');
-                await this.delay(500);
+                await this.clickElement('button:has-text("Duplicate"), button[aria-label*="duplicate"]');
+                await this.delay(800);
+                this.log(`✅ Дубликат ${i + 1}/${count - 1} создан`);
             }
         } catch (error) {
             this.log(`⚠️ Ошибка при дублировании объявлений: ${error.message}`);
@@ -460,7 +479,7 @@ const GoogleAdsBot = {
             await this.clickElement('button:has-text("Publish Campaign")');
             await this.delay(2000);
 
-            this.log('✅ Кампания опубликована');
+            this.log('✅ Кампания опубликована и активирована');
         } catch (error) {
             await this.handleRetry('publishCampaign', error);
         }
@@ -470,14 +489,14 @@ const GoogleAdsBot = {
     // STEP 6: TRACKING SCRIPT
     // ========================
     async setupTrackingScript() {
-        this.log('📊 Шаг 6: Настройка Tracking Script...');
+        this.log('📊 Шаг 6: Настройка Tracking Script с динамическими параметрами...');
         try {
             // Перейти на Tools > Scripts
-            await this.clickElement('a[aria-label*="Tools"], nav a:has-text("Tools")');
-            await this.delay(1000);
+            await this.clickElement('nav a:has-text("Tools"), a[aria-label*="Tools"]');
+            await this.delay(1500);
 
             await this.clickElement('a:has-text("Scripts"), [role="menuitem"]:has-text("Scripts")');
-            await this.delay(1000);
+            await this.delay(1500);
 
             // Нажать New Script
             await this.clickElement('button:has-text("New Script")');
@@ -485,10 +504,11 @@ const GoogleAdsBot = {
 
             // Вставить tracking script код
             await this.insertTrackingScriptCode();
+            await this.delay(300);
 
             // Нажать Save
             await this.clickElement('button:has-text("Save")');
-            await this.delay(1000);
+            await this.delay(1500);
 
             // Нажать Run
             await this.clickElement('button:has-text("Run")');
@@ -502,7 +522,7 @@ const GoogleAdsBot = {
                 await this.setScriptFrequency('hourly');
             }
 
-            this.log('✅ Tracking Script настроен');
+            this.log('✅ Tracking Script настроен с динамическими параметрами');
         } catch (error) {
             await this.handleRetry('setupTrackingScript', error);
         }
@@ -511,23 +531,37 @@ const GoogleAdsBot = {
     async insertTrackingScriptCode() {
         try {
             const scriptTemplate = `
-// Tracking Script для ${this.config.account_name || 'Default Account'}
+// Tracking Script - ${this.config.account_name || 'Default Account'}
+// Created: ${new Date().toLocaleString('ru-RU')}
 var ACCOUNT_NAME = '${this.config.account_name || 'Account'}';
-var CREATIVE_APPROACH = '${this.config.creative_approach || 'Default'}';
+var CREATIVE_APPROACH = '${this.config.creative_approach || 'video'}';
+var CAMPAIGN_LOCATION = '${this.config.location || 'Default'}';
+var CAMPAIGN_BUDGET = ${this.config.budget || 0};
+var TARGET_CPA = ${this.config.targetCPA || 0};
 
 function trackConversions() {
-  // Логика трекинга конверсий
-  Logger.log('Tracking for: ' + ACCOUNT_NAME);
+  var stats = {};
+  stats['account'] = ACCOUNT_NAME;
+  stats['creative'] = CREATIVE_APPROACH;
+  stats['location'] = CAMPAIGN_LOCATION;
+  
+  Logger.log('Tracking for: ' + ACCOUNT_NAME + ' | Creative: ' + CREATIVE_APPROACH);
+  Logger.log('Campaign Budget: €' + CAMPAIGN_BUDGET + ' | Target CPA: €' + TARGET_CPA);
+  
+  return stats;
 }
 
 trackConversions();
             `.trim();
 
             // Найти textarea для кода
-            const codeEditor = document.querySelector('textarea[role="textbox"], [role="textbox"] textarea, .code-editor');
+            const codeEditor = document.querySelector('textarea[role="textbox"], [role="textbox"] textarea, .code-editor, div[role="textbox"]');
             if (codeEditor) {
                 codeEditor.value = scriptTemplate;
+                codeEditor.textContent = scriptTemplate;
                 codeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+                codeEditor.dispatchEvent(new Event('change', { bubbles: true }));
+                this.log('✅ Tracking script код вставлен с динамическими параметрами');
             }
         } catch (error) {
             this.log(`⚠️ Ошибка при вставке скрипта: ${error.message}`);
@@ -536,16 +570,14 @@ trackConversions();
 
     async handleGoogleAuthorization() {
         try {
-            // Проверить появление окна авторизации
             await this.waitForElement('[role="dialog"]:has-text("Google")', 5000);
             
-            // Отметить галочки разрешений
             const checkboxes = document.querySelectorAll('[role="dialog"] input[type="checkbox"]');
             checkboxes.forEach(cb => cb.checked = true);
             
-            // Нажать Continue
             await this.clickElement('[role="dialog"] button:has-text("Continue")');
-            await this.delay(1000);
+            await this.delay(2000);
+            this.log('✅ Google авторизация пройдена');
         } catch (error) {
             this.log(`⚠️ Авторизация Google (может потребоваться вручную): ${error.message}`);
         }
@@ -553,13 +585,12 @@ trackConversions();
 
     async setScriptFrequency(frequency) {
         try {
-            // Переключить на вкладку расписания
             await this.clickElement('[role="tab"]:has-text("Schedule"), a:has-text("Frequency")');
-            await this.delay(500);
+            await this.delay(800);
 
-            // Выбрать периодичность
             if (frequency === 'hourly') {
                 await this.clickElement('input[value="hourly"], [role="option"]:has-text("Every hour")');
+                this.log('✅ Периодичность установлена на каждый час');
             }
         } catch (error) {
             this.log(`⚠️ Ошибка при установке периодичности: ${error.message}`);
@@ -572,10 +603,22 @@ trackConversions();
 
     async closeGoogleGuidance() {
         try {
-            // Закрыть всплывающие подсказки Google
-            const closeButtons = document.querySelectorAll('button[aria-label*="Close"], [role="button"][aria-label*="dismiss"]');
-            closeButtons.forEach(btn => btn.click());
-            await this.delay(300);
+            // Закрыть все всплывающие подсказки Google
+            const closeButtons = document.querySelectorAll(
+                'button[aria-label*="Close"], button[aria-label*="close"], ' +
+                '[role="button"][aria-label*="dismiss"], ' +
+                'button[aria-label*="Dismiss"], ' +
+                '.guidance-close-button'
+            );
+            
+            for (const btn of closeButtons) {
+                try {
+                    btn.click();
+                    await this.delay(100);
+                } catch (e) {
+                    // Silently continue
+                }
+            }
         } catch (error) {
             // Silently fail
         }
@@ -583,7 +626,12 @@ trackConversions();
 
     async handleStepError(error) {
         this.log(`❌ ОШИБКА НА ШАГЕ ${this.currentStep}: ${error.message}`);
-        this.log(`⚠️ Требуется вмешательство человека`);
+        this.log(`⏸️ БОТ ПРИОСТАНОВЛЕН - Требуется вмешательство человека`);
+        
+        // Проверить 2FA
+        if (document.body.innerText.includes('verification') || document.body.innerText.includes('2-Step')) {
+            this.log('🔐 ОБНАРУЖЕНА ДВУХФАКТОРНАЯ АУТЕНТИФИКАЦИЯ - Пожалуйста, введите код вручную');
+        }
     }
 
     async handleRetry(functionName, error) {
@@ -591,6 +639,14 @@ trackConversions();
             this.retryCount++;
             this.log(`🔄 Попытка повтора ${this.retryCount}/${this.maxRetries}...`);
             await this.delay(2000);
+            
+            // Перезагрузить страницу при ошибке соединения
+            if (error.message.includes('network') || error.message.includes('connection')) {
+                this.log('🔄 Обнаружена ошибка соединения - перезагружаем страницу...');
+                location.reload();
+                await this.delay(3000);
+            }
+            
             try {
                 await this[functionName]();
                 this.retryCount = 0;
@@ -623,6 +679,8 @@ trackConversions();
 
     async clickElement(selector) {
         const element = await this.waitForElement(selector);
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await this.delay(100);
         element.click();
         await this.delay(300);
     }
@@ -630,6 +688,7 @@ trackConversions();
     async fillInput(selector, value) {
         const element = await this.findElement(selector);
         element.value = value;
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         element.dispatchEvent(new Event('input', { bubbles: true }));
         element.dispatchEvent(new Event('change', { bubbles: true }));
         await this.delay(300);
@@ -641,7 +700,7 @@ trackConversions();
 
     log(message) {
         const timestamp = new Date().toLocaleTimeString('ru-RU');
-        console.log(`[${timestamp}] ${message}`);
+        console.log(`[GoogleAdsBot ${timestamp}] ${message}`);
     }
 };
 
