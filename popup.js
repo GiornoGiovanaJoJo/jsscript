@@ -1,166 +1,179 @@
-// Инициализация интерфейса
-document.addEventListener('DOMContentLoaded', () => {
-    initializeTabs();
-    loadSettings();
-    setupEventListeners();
-});
+// popup.js - Handle form submission and send config to content.js
 
-// Управление вкладками
-function initializeTabs() {
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
+class CampaignPopup {
+    constructor() {
+        this.form = document.getElementById('campaignForm');
+        this.startBtn = document.getElementById('startBtn');
+        this.resetBtn = document.getElementById('resetBtn');
+        this.statusDiv = document.getElementById('status');
 
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabName = button.getAttribute('data-tab');
+        this.initEventListeners();
+        this.loadSavedConfig();
+    }
 
-            // Скрыть все вкладки
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-            });
+    initEventListeners() {
+        this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+        this.resetBtn.addEventListener('click', () => this.resetForm());
+    }
 
-            // Убрать активный класс со всех кнопок
-            tabButtons.forEach(btn => {
-                btn.classList.remove('active');
-            });
+    /**
+     * Collect all form data including 6 dynamic parameters
+     */
+    collectFormData() {
+        return {
+            // Basic campaign info
+            campaignName: document.getElementById('campaignName').value.trim(),
+            budget: parseFloat(document.getElementById('budget').value),
+            targetCPA: parseFloat(document.getElementById('targetCPA').value),
+            location: document.getElementById('location').value.trim(),
+            language: document.getElementById('language').value.trim(),
 
-            // Показать выбранную вкладку
-            document.getElementById(tabName).classList.add('active');
-            button.classList.add('active');
-        });
-    });
-}
+            // === 6 DYNAMIC PARAMETERS ===
 
-// Загрузка сохранённых настроек
-function loadSettings() {
-    chrome.storage.sync.get(null, (items) => {
-        Object.keys(items).forEach(key => {
-            const element = document.getElementById(key);
-            if (element) {
-                if (element.type === 'checkbox') {
-                    element.checked = items[key];
-                } else {
-                    element.value = items[key];
-                }
-            }
-        });
-    });
-}
+            // 1️⃣ Schedule Times (DYNAMIC)
+            schedule_start: document.getElementById('scheduleStart').value, // e.g., "09:00"
+            schedule_end: document.getElementById('scheduleEnd').value,     // e.g., "18:00"
+            schedule_days: 'Monday - Friday', // Fixed
 
-// Сохранение настроек
-function saveSettings() {
-    const settings = {};
-    const inputs = document.querySelectorAll('input, textarea, select');
+            // 2️⃣ Channels (DYNAMIC)
+            channels: document.getElementById('channels').value, // "all" or "discover"
 
-    inputs.forEach(input => {
-        if (input.id) {
-            if (input.type === 'checkbox') {
-                settings[input.id] = input.checked;
-            } else {
-                settings[input.id] = input.value;
-            }
-        }
-    });
+            // 3️⃣ Gender (DYNAMIC)
+            audience_gender: document.getElementById('audienceGender').value, // "all", "male", "female"
 
-    chrome.storage.sync.set(settings, () => {
-        showNotification('✅ Настройки сохранены');
-    });
-}
+            // 4️⃣ Age Min (DYNAMIC)
+            audience_age_min: document.getElementById('audienceAgeMin').value, // "18", "25", "35", etc.
 
-// Экспорт настроек
-function exportSettings() {
-    chrome.storage.sync.get(null, (items) => {
-        const dataStr = JSON.stringify(items, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `google-ads-bot-settings-${Date.now()}.json`;
-        link.click();
-        showNotification('📥 Настройки экспортированы');
-    });
-}
+            // 5️⃣ Age Max (DYNAMIC)
+            audience_age_max: document.getElementById('audienceAgeMax').value, // "24", "34", "65+", etc.
 
-// Импорт настроек
-function importSettings() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const settings = JSON.parse(event.target.result);
-                chrome.storage.sync.set(settings, () => {
-                    showNotification('📤 Настройки импортированы');
-                    loadSettings();
-                });
-            } catch (err) {
-                showNotification('❌ Ошибка при импорте файла');
-            }
+            // Device type
+            device_type: document.getElementById('deviceType').value, // "mobile" or "all"
+
+            // 6️⃣ Ad Type (DYNAMIC)
+            ad_type: document.getElementById('adType').value, // "single_image", "video", "carousel"
+
+            // === CONSTANT ===
+            // Optimize Targeting - ALWAYS FALSE (не добавляем в форму)
+            use_optimized_targeting: false
         };
-        reader.readAsText(file);
-    };
-    input.click();
-}
+    }
 
-// Сброс настроек
-function resetSettings() {
-    if (confirm('Вы уверены? Это действие удалит все настройки.')) {
-        chrome.storage.sync.clear(() => {
-            document.querySelectorAll('input, textarea, select').forEach(el => {
-                if (el.type === 'checkbox') {
-                    el.checked = false;
-                } else {
-                    el.value = '';
-                }
-            });
-            showNotification('🔄 Настройки сброшены');
+    /**
+     * Validate form data
+     */
+    validateFormData(config) {
+        const errors = [];
+
+        if (!config.campaignName) errors.push('Campaign name is required');
+        if (!config.budget || config.budget <= 0) errors.push('Budget must be > 0');
+        if (!config.targetCPA || config.targetCPA <= 0) errors.push('Target CPA must be > 0');
+        if (!config.location) errors.push('Location is required');
+        if (!config.language) errors.push('Language is required');
+        if (!config.schedule_start) errors.push('Start time is required');
+        if (!config.schedule_end) errors.push('End time is required');
+        if (!config.channels) errors.push('Channels must be selected');
+        if (!config.audience_gender) errors.push('Gender must be selected');
+        if (!config.audience_age_min) errors.push('Age from must be selected');
+        if (!config.audience_age_max) errors.push('Age to must be selected');
+        if (!config.device_type) errors.push('Device type must be selected');
+        if (!config.ad_type) errors.push('Ad type must be selected');
+
+        return errors;
+    }
+
+    /**
+     * Show status message
+     */
+    showStatus(message, type = 'info') {
+        this.statusDiv.textContent = message;
+        this.statusDiv.className = `status show ${type}`;
+        
+        if (type === 'success') {
+            setTimeout(() => {
+                this.statusDiv.classList.remove('show');
+            }, 3000);
+        }
+    }
+
+    /**
+     * Handle form submission
+     */
+    async handleSubmit(e) {
+        e.preventDefault();
+
+        // Collect form data
+        const config = this.collectFormData();
+
+        // Validate
+        const errors = this.validateFormData(config);
+        if (errors.length > 0) {
+            this.showStatus(`❌ ${errors.join(', ')}`, 'error');
+            return;
+        }
+
+        // Save to storage
+        try {
+            await chrome.storage.local.set({ campaignConfig: config });
+            this.showStatus('✅ Config saved! Opening Google Ads...', 'success');
+
+            // Disable button while processing
+            this.startBtn.disabled = true;
+            this.startBtn.textContent = 'Processing...';
+
+            // Open Google Ads in new tab
+            setTimeout(() => {
+                chrome.tabs.create({ 
+                    url: 'https://ads.google.com/home/',
+                    active: true 
+                });
+            }, 500);
+        } catch (error) {
+            console.error('Storage error:', error);
+            this.showStatus(`❌ Error: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Reset form to defaults
+     */
+    resetForm() {
+        this.form.reset();
+        document.getElementById('scheduleStart').value = '09:00';
+        document.getElementById('scheduleEnd').value = '18:00';
+        document.getElementById('audienceAgeMin').value = '35';
+        document.getElementById('audienceAgeMax').value = '65';
+        document.getElementById('deviceType').value = 'mobile';
+        document.getElementById('adType').value = 'single_image';
+        this.statusDiv.classList.remove('show');
+    }
+
+    /**
+     * Load previously saved config
+     */
+    loadSavedConfig() {
+        chrome.storage.local.get(['campaignConfig'], (result) => {
+            if (result.campaignConfig) {
+                const config = result.campaignConfig;
+                document.getElementById('campaignName').value = config.campaignName || '';
+                document.getElementById('budget').value = config.budget || '';
+                document.getElementById('targetCPA').value = config.targetCPA || '';
+                document.getElementById('location').value = config.location || '';
+                document.getElementById('language').value = config.language || '';
+                document.getElementById('scheduleStart').value = config.schedule_start || '09:00';
+                document.getElementById('scheduleEnd').value = config.schedule_end || '18:00';
+                document.getElementById('channels').value = config.channels || '';
+                document.getElementById('audienceGender').value = config.audience_gender || '';
+                document.getElementById('audienceAgeMin').value = config.audience_age_min || '35';
+                document.getElementById('audienceAgeMax').value = config.audience_age_max || '65';
+                document.getElementById('deviceType').value = config.device_type || 'mobile';
+                document.getElementById('adType').value = config.ad_type || 'single_image';
+            }
         });
     }
 }
 
-// Запуск полного цикла
-function runFullPipeline() {
-    saveSettings();
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'START_FULL_PIPELINE'
-        }, (response) => {
-            if (response) {
-                showNotification('▶️ Запуск полного цикла...');
-            }
-        });
-    });
-}
-
-// Запуск только трекинг скрипта
-function runTrackingOnly() {
-    saveSettings();
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'RUN_TRACKING_SCRIPT'
-        }, (response) => {
-            if (response) {
-                showNotification('⚡ Запуск трекинг скрипта...');
-            }
-        });
-    });
-}
-
-// Уведомления
-function showNotification(message) {
-    console.log(message);
-    // Можно добавить визуальное уведомление
-}
-
-// Подключение обработчиков событий
-function setupEventListeners() {
-    document.getElementById('save-button').addEventListener('click', saveSettings);
-    document.getElementById('export-button').addEventListener('click', exportSettings);
-    document.getElementById('import-button').addEventListener('click', importSettings);
-    document.getElementById('reset-button').addEventListener('click', resetSettings);
-    document.getElementById('run-full-pipeline').addEventListener('click', runFullPipeline);
-    document.getElementById('run-tracking-only').addEventListener('click', runTrackingOnly);
-}
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    new CampaignPopup();
+});
