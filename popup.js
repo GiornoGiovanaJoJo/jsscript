@@ -158,16 +158,49 @@ class CampaignPopup {
             this.startBtn.textContent = '⏳ Processing...';
 
             // Open Google Ads in new tab
-            setTimeout(() => {
-                chrome.tabs.create({ 
-                    url: 'https://ads.google.com/home/',
-                    active: true 
-                });
-            }, 500);
+            chrome.tabs.create({ 
+                url: 'https://ads.google.com/home/',
+                active: true 
+            }, (tab) => {
+                // После открытия вкладки дождемся загрузки и отправим команду автоматического входа
+                console.log('[Popup] Новая вкладка открыта, ID:', tab.id);
+                this.waitAndAutoLogin(tab.id, config);
+            });
         } catch (error) {
             console.error('Storage error:', error);
             this.showStatus(`❌ Error: ${error.message}`, 'error');
         }
+    }
+
+    /**
+     * Ждем загрузки страницы и автоматически нажимаем кнопку входа
+     */
+    waitAndAutoLogin(tabId, config) {
+        let attempts = 0;
+        const maxAttempts = 30; // ~30 секунд
+        
+        const checkAndLogin = () => {
+            if (attempts >= maxAttempts) {
+                console.log('[Popup] Не удалось загрузить страницу Google Ads');
+                return;
+            }
+
+            // Отправляем команду для автоматического входа
+            chrome.tabs.sendMessage(tabId, {
+                action: 'AUTO_LOGIN',
+                config: config
+            }).then(() => {
+                console.log('[Popup] Команда AUTO_LOGIN отправлена на вкладку', tabId);
+            }).catch((error) => {
+                // Content script еще не загрузился, пробуем еще раз
+                console.log('[Popup] Content script не готов, попытка', attempts + 1);
+                attempts++;
+                setTimeout(checkAndLogin, 1000);
+            });
+        };
+
+        // Начинаем проверку через 1.5 секунды
+        setTimeout(checkAndLogin, 1500);
     }
 
     /**
